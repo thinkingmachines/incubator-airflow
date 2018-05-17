@@ -18,7 +18,7 @@
 # under the License.
 #
 from apiclient.discovery import build
-from apiclient.http import MediaFileUpload
+from apiclient.http import MediaFileUpload, MediaIoBaseUpload
 from googleapiclient import errors
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
@@ -170,7 +170,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         return downloaded_file_bytes
 
     # pylint:disable=redefined-builtin
-    def upload(self, bucket, object, filename, mime_type='application/octet-stream'):
+    def upload(self, bucket, object, filename=None, file_handle=None,
+               mime_type='application/octet-stream'):
         """
         Uploads a local file to Google Cloud Storage.
 
@@ -180,11 +181,18 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type object: string
         :param filename: The local file path to the file to be uploaded.
         :type filename: string
+        :param file_handle: The source of the bytes to upload.
+        :type file_handle: io.Base or file object
         :param mime_type: The MIME type to set when uploading the file.
         :type mime_type: string
         """
         service = self.get_conn()
-        media = MediaFileUpload(filename, mime_type)
+        if not (filename or file_handle):
+            raise ValueError('Supply either filename or file_handle!')
+        if filename:
+            media = MediaFileUpload(filename, mime_type)
+        else:
+            media = MediaIoBaseUpload(file_handle, mime_type)
         try:
             service \
                 .objects() \
